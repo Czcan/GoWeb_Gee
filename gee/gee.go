@@ -11,8 +11,7 @@ type HandlerFunc func(*Context)
 type RouterGroup struct {
 	prefix      string
 	middlewares []HandlerFunc //	support middleware
-	parent      *RouterGroup
-	engine      *Engine //	all group share a engine instance
+	engine      *Engine       //	all group share one engine instance
 }
 
 type Engine struct {
@@ -36,7 +35,6 @@ func (group *RouterGroup) Group(prefix string) *RouterGroup {
 	engine := group.engine
 	newGroup := &RouterGroup{
 		prefix: group.prefix + prefix,
-		parent: group,
 		engine: engine,
 	}
 
@@ -70,7 +68,7 @@ func (engine *Engine) Run(addr string) (err error) {
 
 // 解析请求的路径， 查找路由映射表 -> 查到则执行注册的处理方法，否则， 返回错误码
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var middlewares []HandlerFunc = make([]HandlerFunc, 10)
+	var middlewares []HandlerFunc
 
 	for _, group := range engine.groups {
 		if strings.HasPrefix(r.URL.Path, group.prefix) {
