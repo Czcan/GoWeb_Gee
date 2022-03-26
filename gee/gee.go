@@ -3,9 +3,17 @@ package gee
 import (
 	"log"
 	"net/http"
+	"strings"
 )
 
-type HandlerFunc func(c *Context)
+type HandlerFunc func(*Context)
+
+type RouterGroup struct {
+	prefix      string
+	middlewares []HandlerFunc //	support middleware
+	parent      *RouterGroup
+	engine      *Engine //	all group share a engine instance
+}
 
 type Engine struct {
 	*RouterGroup // go的嵌套类型，这样Engine就有RouterGroup的属性了， 相当于java或python等语言的 继承， Engine 继承于 RouterGroup，子类Engine比父类有更多的成员变量和属性
@@ -13,13 +21,6 @@ type Engine struct {
 	// 路由映射表
 	router *router
 	groups []*RouterGroup // store all RouterGroup
-}
-
-type RouterGroup struct {
-	prefix      string
-	middlewares []HandlerFunc //	support middleware
-	parent      *RouterGroup
-	engine      *Engine //	all group share a engine instance
 }
 
 func New() *Engine {
@@ -43,6 +44,11 @@ func (group *RouterGroup) Group(prefix string) *RouterGroup {
 	return newGroup
 }
 
+// User is define to add middleware to the group
+func (group *RouterGroup) Use(middlewares ...HandlerFunc) {
+	group.middlewares = append(group.middlewares, middlewares...)
+}
+
 func (group *RouterGroup) addRoute(method string, comp string, handler HandlerFunc) {
 	pattern := group.prefix + comp
 	log.Printf("Route%4s - %s", method, pattern)
@@ -64,6 +70,15 @@ func (engine *Engine) Run(addr string) (err error) {
 
 // 解析请求的路径， 查找路由映射表 -> 查到则执行注册的处理方法，否则， 返回错误码
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var middlewares []HandlerFunc = make([]HandlerFunc, 10)
+
+	for _, group := range engine.groups {
+		if strings.HasPrefix(r.URL.Path, group.prefix) {
+			middlewares = append(middlewares, group.middlewares...)
+		}
+	}
+
 	c := newContext(w, r)
+	c.handlers = middlewares
 	engine.router.handle(c)
 }
