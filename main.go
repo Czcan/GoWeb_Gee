@@ -30,8 +30,8 @@ func FormatAsDate(t time.Time) string {
 }
 
 func main() {
-	r := gee.New()
-	r.Use(gee.Logger()) // global middleware
+	// gee.Default return a engine default use Logger(), Recovery()
+	r := gee.Default()
 
 	r.SetFuncMap(template.FuncMap{
 		"FormatAsDate": FormatAsDate,
@@ -60,8 +60,13 @@ func main() {
 		})
 	})
 
+	r.GET("/panic", func(c *gee.Context) {
+		names := []string{"geektutu"}
+		c.String(http.StatusOK, names[100])
+	})
+
 	v2 := r.Group("/v2")
-	v2.Use(onlyForV2()) // v2 group middleware
+	// v2.Use(onlyForV2()) // v2 group middleware
 
 	{
 		v2.GET("/hello/:name", func(c *gee.Context) {

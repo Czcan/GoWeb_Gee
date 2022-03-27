@@ -86,7 +86,7 @@ func (c *Context) JSON(code int, obj interface{}) {
 	c.Status(code)
 	encoder := json.NewEncoder(c.Writer)
 	if err := encoder.Encode(obj); err != nil {
-		panic(err)
+		http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
 	}
 }
 
