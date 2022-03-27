@@ -1,8 +1,11 @@
 package gee
 
 import (
+	"html/template"
 	"log"
 	"net/http"
+	"os"
+	"path"
 	"strings"
 )
 
@@ -20,6 +23,9 @@ type Engine struct {
 	// 路由映射表
 	router *router
 	groups []*RouterGroup // store all RouterGroup
+
+	htmlTemplates *template.Template // for html render
+	funcMap       template.FuncMap   // for html render
 }
 
 func New() *Engine {
@@ -62,6 +68,41 @@ func (group *RouterGroup) POST(pattern string, handler HandlerFunc) {
 	group.addRoute("POST", pattern, handler)
 }
 
+// create static handler
+func (group *RouterGroup) createStaticHandler(relativePath string, fs http.FileSystem) HandlerFunc {
+	absolutPath := path.Join(group.prefix, relativePath)
+	fileServer := http.StripPrefix(absolutPath, http.FileServer(fs))
+	return func(c *Context) {
+		file := c.Param("filepath")
+		// Check the file is existed and/or is have the permission to access it
+		if _, err := os.Open(file); err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+
+		fileServer.ServeHTTP(c.Writer, c.Req)
+	}
+}
+
+// serve static file
+// 用户 可以将 磁盘目录上的 某个文件夹root 映射 到 relativepath
+// 比如 Static("/assets", "/user/local/htwer") 用户访问localhost:9999/assets/js/css 最终返回 /user/local/htwer/js/css
+func (group *RouterGroup) Static(relativePath string, root string) {
+	handler := group.createStaticHandler(relativePath, http.Dir(root))
+	urlPattern := path.Join(relativePath, "/*filepath")
+	// Register Get handler
+	group.GET(urlPattern, handler)
+}
+
+// for custom render funcion
+func (engine *Engine) SetFuncMap(funcMap template.FuncMap) {
+	engine.funcMap = funcMap
+}
+
+func (engine *Engine) LoadHTMLGlob(pattern string) {
+	engine.htmlTemplates = template.Must(template.New("").Funcs(engine.funcMap).ParseGlob(pattern))
+}
+
 func (engine *Engine) Run(addr string) (err error) {
 	return http.ListenAndServe(addr, engine)
 }
@@ -78,5 +119,6 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	c := newContext(w, r)
 	c.handlers = middlewares
+	c.engine = engine
 	engine.router.handle(c)
 }
