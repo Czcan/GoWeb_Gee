@@ -29,6 +29,7 @@ type Context struct {
 	engine *Engine
 }
 
+// 解析路径参数 如 /gee/aka/:name  -> x := c.Param("name")
 func (c *Context) Param(key string) string {
 	value := c.Params[key]
 	return value
@@ -57,10 +58,12 @@ func (c *Context) Fail(code int, err string) {
 	c.JSON(code, H{"message": err})
 }
 
+// 获取 POST 参数
 func (c *Context) PostForm(key string) string {
 	return c.Req.FormValue(key)
 }
 
+// 获取Query参数 如 /v1/aka?name=xxx&pwd=xxx  -> x := c.Query("name"); y := c.Query("pwd")
 func (c *Context) Query(key string) string {
 	return c.Req.URL.Query().Get(key)
 }

@@ -9,7 +9,7 @@ type node struct {
 	pattern  string  // 待匹配路由
 	part     string  //路由一部分 如 :lang
 	children []*node // 子节点
-	isWild   bool    // 是否精确匹配  如 part含有 :  或者 * 时，为true
+	isWild   bool    // 是否模糊匹配  如 part含有 :  或者 * 时，为true
 }
 
 func (n *node) String() string {
